@@ -16,8 +16,7 @@
   "author": "patryk.nizio@gmail.com",
   "license": "MIT",
   "dependencies": {
-    "orbit-controls-es6": "^2.0.1",
-    "three": "^0.108.0"
+    "three": "^0.135.0"
   },
   "devDependencies": {
     "@babel/core": "^7.16.0",
