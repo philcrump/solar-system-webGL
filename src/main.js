@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import OrbitControls from 'orbit-controls-es6';
-import {solarSystemCreate, solarSystemMove} from './SolarSystem';
+import {solarSystemCreate, solarSystemMove, planetLabelsMove} from './SolarSystem';
 import {dataArray} from './Helpers';
 import {Stats} from './Stats';
 
 let camera, scene, renderer, controls, descPanel;
 let planets = {sun: {}, mercury: {}, venus: {}, earth: {}, mars: {}, jupiter: {}, saturn: {}, uranus: {}, neptune: {}};
+let planetlabels = {sun: {}, mercury: {}, venus: {}, earth: {}, mars: {}, jupiter: {}, saturn: {}, uranus: {}, neptune: {}};
+let planetcircles = {sun: {}, mercury: {}, venus: {}, earth: {}, mars: {}, jupiter: {}, saturn: {}, uranus: {}, neptune: {}};
 
 // Mouse interactive
 const raycaster = new THREE.Raycaster();
@@ -56,10 +58,10 @@ function init() {
     // Some helpers (axis, grid)
     // helpers(scene);
     // Create Solar System
-    solarSystemCreate(scene, planets, render());
+    solarSystemCreate(scene, planets, planetlabels, planetcircles, render());
 
     // Camera
-    camera.position.set(10, 25, 15);
+    camera.position.set(8, 5, 8);
     controls.update();
 }
 
@@ -83,6 +85,7 @@ function animate() {
     setTimeout(() => {
         controls.update();
         solarSystemMove(planets);
+        planetLabelsMove(planets, planetlabels, planetcircles, camera);
         render();
         stats.end(); // Stats
     }, 10);
