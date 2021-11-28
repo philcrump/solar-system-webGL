@@ -1,8 +1,11 @@
 import * as THREE from 'three';
+import {FontLoader} from "three/examples/jsm/loaders/FontLoader";
+import {TextGeometry} from "three/examples/jsm/geometries/TextGeometry";
+import {planetThreeXYZ} from './PlanetPosition';
 
-const AU = 5;
+const AU = 10;
 const ER = 0.01; // Earth Radius
-const sunSize = 1; // Realistic 109 - number of earth radius
+const sunSize = 0.1; // Realistic 109 - number of earth radius
 
 let font;
 /**
@@ -15,7 +18,7 @@ const solarSystemCreate = (scene, planets, planetlabels, planetcircles, render) 
     let loader = new THREE.TextureLoader();
     let texture, orbitCircle, orbit;
 
-    let fontloader = new THREE.FontLoader();
+    let fontloader = new FontLoader();
 
     let fontL = fontloader.load(`Metropolis Thin_Regular.json`, // onLoad callback
     function ( _font )
@@ -29,10 +32,12 @@ const solarSystemCreate = (scene, planets, planetlabels, planetcircles, render) 
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
             texture.matrixAutoUpdate = false;
 
-            if (sphere.name === 'Sun') {
+            if (sphere.name === 'Sun')
+            {
                 planets[sphere.name] = new THREE.Mesh(new THREE.SphereBufferGeometry(sphere.radius, 32, 32), new THREE.MeshBasicMaterial({map: texture}));
             }
-            else {
+            else
+            {
                 planets[sphere.name] = new THREE.Mesh(new THREE.SphereBufferGeometry(sphere.radius, 32, 32), new THREE.MeshPhongMaterial({
                     color: 0xffffff,
                     specular: 0x050505,
@@ -41,9 +46,26 @@ const solarSystemCreate = (scene, planets, planetlabels, planetcircles, render) 
                 }));
 
                 // Create orbit
-                orbitCircle = new THREE.EllipseCurve(0, 0, sphere.distance, sphere.distance, 0, 2 * Math.PI, false, 0);
-                orbit = new THREE.Line(new THREE.BufferGeometry().setFromPoints(orbitCircle.getPoints(64)), new THREE.LineBasicMaterial({color: 0x056d64}));
-                orbit.rotateX(0.5 * Math.PI);
+                const orbitGeometry = new THREE.BufferGeometry();
+
+                let orbitVerticesArray = [];
+
+                const unixMillisNow = (new Date().getTime());
+                for(let i=0; i<128; i++)
+                {
+                    const tMillis = unixMillisNow + ((i/128.0) * (sphere.orbitSeconds*1000.0));
+                    const xyz = planetThreeXYZ(sphere.keplerianIndex, tMillis);
+                    orbitVerticesArray.push(xyz[0]*AU,xyz[1]*AU,xyz[2]*AU);
+                }
+                const orbitVertices = new Float32Array( orbitVerticesArray );
+
+                // itemSize = 3 because there are 3 values (components) per vertex
+                orbitGeometry.setAttribute('position', new THREE.BufferAttribute(orbitVertices, 3));
+
+                //orbitCircle = new THREE.EllipseCurve(0, 0, sphere.distance, sphere.distance, 0, 2 * Math.PI, false, 0);
+                //orbit = new THREE.Line(new THREE.BufferGeometry().setFromPoints(orbitCircle.getPoints(64)), new THREE.LineBasicMaterial({color: 0x056d64}));
+                orbit = new THREE.Line(orbitGeometry, new THREE.LineBasicMaterial({color: 0x056d64}));
+                //orbit.rotateX(0.5 * Math.PI);
                 scene.add(orbit);
             }
             planets[sphere.name].name = sphere.name;
@@ -52,7 +74,7 @@ const solarSystemCreate = (scene, planets, planetlabels, planetcircles, render) 
             /* No label for Sun */
             if(sphere.name === 'Sun') return;
 
-            let textGeo = new THREE.TextGeometry( ` ${sphere.name}`, {
+            let textGeo = new TextGeometry( ` ${sphere.name}`, {
                 font: font,
                 size: 0.1,
                 height: 0,
@@ -91,12 +113,20 @@ const solarSystemCreate = (scene, planets, planetlabels, planetcircles, render) 
  * @param {object} planets
  */
 const solarSystemMove = (planets) => {
+    const unixMillisNow = (new Date().getTime());
     solarSystemData.map(sphere => {
         sphere.orbit += sphere.lineSpeed * 0.01;
 
         planets[sphere.name].rotateY(sphere.rotate);
-        planets[sphere.name].position.x = Math.cos(sphere.orbit) * sphere.distance;
-        planets[sphere.name].position.z = Math.sin(sphere.orbit) * sphere.distance;
+
+        if(sphere.keplerianIndex >= 0)
+        {
+            const xyz = planetThreeXYZ(sphere.keplerianIndex, unixMillisNow);
+
+            planets[sphere.name].position.x = xyz[0] * AU;
+            planets[sphere.name].position.y = xyz[1] * AU;
+            planets[sphere.name].position.z = xyz[2] * AU;
+        }
     });
 };
 
@@ -139,42 +169,52 @@ const planetLabelsMove = (planets, planetlabels, planetcircles, camera) =>
 const solarSystemData = [
     {
         name: 'Sun',
+        keplerianIndex: -1,
         radius: sunSize,
         distance: 0,
         rotate: 0.01,
         orbit: 2 * Math.PI * AU * AU,
+        orbitSeconds: 0,
         lineSpeed: 0
     },
     {
         name: 'Mercury',
+        keplerianIndex: 0,
         radius: 0.38 * ER,
         distance: sunSize + (0.387 * AU),
         rotate: 0.01,
         orbit: 2 * Math.PI * AU * AU,
+        orbitSeconds: (88 * 24 * 3600),
         lineSpeed: (2 * Math.PI / 240) * AU,
     },
     {
         name: 'Venus',
+        keplerianIndex: 1,
         radius: 0.94 * ER,
         distance: sunSize + (0.72 * AU),
         rotate: 0.005,
         orbit: 2 * Math.PI * AU * AU,
+        orbitSeconds: (224.7 * 24 * 3600),
         lineSpeed: (2 * Math.PI / 610) * AU,
     },
     {
         name: 'Earth',
+        keplerianIndex: 2,
         radius: ER,
         distance: sunSize + AU,
         rotate: 0.02,
         orbit: 2 * Math.PI * AU * AU,
+        orbitSeconds: (365.2 * 24 * 3600),
         lineSpeed: (2 * Math.PI / 1000) * AU,
     },
     {
         name: 'Mars',
+        keplerianIndex: 3,
         radius: 0.53 * ER,
         distance: sunSize + (1.523 * AU),
         rotate: 0.01,
         orbit: 2 * Math.PI * AU * AU,
+        orbitSeconds: (687 * 24 * 3600),
         lineSpeed: (2 * Math.PI / 1880) * AU,
     }
 /*
